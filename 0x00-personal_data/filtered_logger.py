@@ -90,3 +90,43 @@ def get_db() -> mysql.connector.connection.MySQLConnection:
                                                           host=host,
                                                           database=db_name)
     return conn_obj
+
+
+def main() -> None:
+    """
+    Main function to obtain a database connection,
+    retrieve all rows in the users table,
+    and display each row under a filtered format.
+    """
+
+    db = get_db()
+
+    cursor = db.cursor()
+
+    try:
+        cursor.execute("SELECT * FROM users;")
+
+        field_names = [i[0] for i in cursor.description]
+
+        logger = get_logger()
+
+        for row in cursor:
+            formatted_row = ""
+            for value, field_name in zip(row, field_names):
+                if field_name in PII_FIELDS:
+                    formatted_row += '{}={}; '.format(
+                            field_name, logger.handlers[0].formatter.REDACTION)
+                else:
+                    formatted_row += '{}={}; '.format(field_name, str(value))
+
+            logger.info(formatted_row.strip())
+    except mysql.connector.Error as err:
+        logger.error(f"Error accessing the database: {err}")
+
+    finally:
+        cursor.close()
+        db.close()
+
+
+if __name__ == "__main__":
+    main()
